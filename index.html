@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Call Audit Tool</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:#f8fafc;font-family:system-ui,-apple-system,sans-serif;padding:2rem 1rem;color:#0f172a}
+  .wrap{max-width:800px;margin:0 auto}
+  .header{text-align:center;margin-bottom:2rem}
+  .header h1{font-size:1.6rem;font-weight:800;margin:.4rem 0 0}
+  .header p{color:#64748b;margin-top:.4rem;font-size:.95rem}
+  .card{background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:1.5rem}
+  label{display:block;font-weight:600;color:#374151;margin-bottom:.4rem;font-size:.9rem}
+  input[type=text]{width:100%;padding:.6rem .8rem;border:1px solid #e2e8f0;border-radius:8px;font-size:.95rem;margin-bottom:1.2rem;outline:none;font-family:inherit}
+  input[type=text]:focus{border-color:#6366f1}
+  #dropzone{border:2px dashed #cbd5e1;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;background:#f8fafc;transition:all .2s;margin-bottom:1rem}
+  #dropzone:hover,#dropzone.drag{border-color:#6366f1;background:#eef2ff}
+  #dropzone .icon{font-size:1.5rem;margin-bottom:.5rem}
+  #dropzone p{color:#64748b;font-weight:500}
+  #dropzone small{color:#94a3b8;font-size:.8rem}
+  #fileList{margin-bottom:1.2rem}
+  .file-item{display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:.5rem .75rem;margin-bottom:.4rem;font-size:.88rem}
+  .file-item .fname{font-weight:600;color:#0f172a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:.5rem}
+  .file-item .fmeta{color:#94a3b8;margin-right:.5rem;white-space:nowrap}
+  .file-item .rm{background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;padding:0 .2rem;line-height:1}
+  .file-item .rm:hover{color:#ef4444}
+  button#auditBtn{width:100%;padding:.75rem;background:#6366f1;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:background .2s}
+  button#auditBtn:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+  button#auditBtn:not(:disabled):hover{background:#4f46e5}
+  .error{background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:1rem;color:#dc2626;margin-bottom:1.5rem}
+  .progress-wrap{margin-bottom:1.5rem}
+  .progress-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .8rem;border-radius:10px;background:#fff;border:1px solid #e2e8f0;margin-bottom:.5rem;font-size:.88rem}
+  .progress-item .pi-name{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{padding:.2rem .55rem;border-radius:20px;font-size:.75rem;font-weight:700;white-space:nowrap}
+  .badge.pending{background:#f1f5f9;color:#64748b}
+  .badge.running{background:#ede9fe;color:#7c3aed}
+  .badge.done{background:#dcfce7;color:#16a34a}
+  .badge.fail{background:#fef2f2;color:#dc2626}
+  .report-section{background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:1.5rem}
+  .report-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid #f1f5f9}
+  .report-title h2{font-size:1rem;font-weight:700;color:#0f172a}
+  .copy-btn{padding:.35rem .7rem;background:#f1f5f9;border:none;border-radius:8px;font-size:.78rem;cursor:pointer;color:#475569;font-weight:600}
+  .copy-btn:hover{background:#e2e8f0}
+  .report-body{line-height:1.7;font-size:.92rem}
+  .report-body h2{font-size:1.15rem;font-weight:700;margin-top:1.4rem;color:#1e293b}
+  .report-body h3{font-size:.98rem;font-weight:700;margin-top:1.1rem;color:#334155}
+  .report-body p{margin:.25rem 0;color:#475569}
+  .report-body hr{border:none;border-top:1px solid #e2e8f0;margin:1rem 0}
+  .report-body strong{color:#0f172a}
+  .finding{background:#f8fafc;border-left:3px solid #6366f1;border-radius:0 8px 8px 0;padding:.75rem 1rem;margin:.75rem 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div style="font-size:2rem">🎧</div>
+    <h1>Call Audit Tool</h1>
+    <p>Upload one or more transcripts and get a full QA report for each</p>
+  </div>
+
+  <div class="card">
+    <label for="closerName">Closer's Name</label>
+    <input type="text" id="closerName" placeholder="e.g. Kameron"/>
+
+    <label>Transcript Files</label>
+    <div id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📂</div>
+      <p>Drop files here or <span style="color:#6366f1">browse</span></p>
+      <small>Supports .txt, .pdf, .vtt — multiple files allowed</small>
+    </div>
+    <input type="file" id="fileInput" accept=".txt,.pdf,.vtt" multiple style="display:none"/>
+
+    <div id="fileList"></div>
+    <button id="auditBtn" disabled onclick="runAudit()">🔍 Run Audit</button>
+  </div>
+
+  <div class="error" id="errorBox" style="display:none"></div>
+  <div id="progressWrap"></div>
+  <div id="reportsWrap"></div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `You are a professional Quality Analyst specializing in sales call performance reviews.
+Your task is to thoroughly analyze the attached call transcript and identify anything that could have been handled better, any missed opportunities, or any behaviors or patterns that may signal a performance concern.
+
+For each issue or flag you identify, provide the following:
+- Timestamp – Include the exact timestamp so the finding can be quickly verified
+- Issue/Flag – Clearly describe what was said or done (or not said/done)
+- Why It's a Concern – Explain why this deviates from best practice or the call guide
+- Recommended Improvement – Suggest how the closer could have handled it better
+
+Be thorough, objective, and specific. Do not generalize — every finding must be backed by a direct reference to the transcript. If a pattern repeats, flag it as a recurring concern and note all instances.
+
+Use the Closer Sales Call Guide below as your primary benchmark:
+
+NOTES: Inconsistencies in pricing is a leverage for urgency — offering discounts to push a deal faster is intentional.
+
+The way we run sales calls:
+- Conversational: These are corporate professionals. Have fun with it.
+- Consultative: Educate them with brevity. Everyone is green unless they've bought a business before. Don't go too deep.
+- We are not lawyers, CPAs, Lenders, or financial advisors.
+- Challenger: If they say something wrong, challenge them.
+- Avoid getting "friend zoned" — don't make it too casual or too far removed from a sales call.
+
+FRAMEWORK:
+
+Intro (2-5 min max): Light. How are you? Where are you calling from? Into the frame.
+
+Frame: "Thanks for hopping on the call today. Just to give you an idea of how these calls go, first we will dive into more about you, what you are looking for from a business, and finally to see if we are a good fit and can actually help you based on your situation. If we can, I will dive into everything we do and answer any questions you have. Ready to get started?"
+
+Discovery Questions:
+1. Tell me about yourself and what brought you to the call? (Open-ended)
+2. Out of curiosity why small business acquisition? (Gauge seriousness)
+3. What is the plan with the job? (Level of commitment)
+4. Did you have any partners? (DO NOT end the call to wait for a partner — do the call, send resources/recording, get both on a follow-up)
+5. What types of industries are you looking at? (Criteria: Industry + Location + Cash Flow — specific in ONE only)
+6. Are you looking to stay local or open to other locations? (Biggest lever if criteria too narrow)
+7. What type of cash flow are you looking for? (Target sub $1M)
+8. What is the down payment you are working with? (Financially qualify)
+9. Is that all cash or stocks/other sources?
+10. Are you interested in using investors?
+11. What do you need from us to succeed? / Dig on their biggest challenge.
+12. How soon are you looking to buy the business?
+13. How soon are you looking to get started with us?
+14. No vacations coming up? (Must be ready to start immediately)
+15. Time investment is 5-10 hours/week — would that work?
+
+After discovery: Transition to pitch.
+
+FORMAT YOUR RESPONSE AS FOLLOWS:
+
+## Call Audit Report
+
+**Closer:** [Name]
+**Overall Assessment:** [1-2 sentence summary]
+
+---
+
+### 🚩 Findings
+
+**Finding #[N]**
+- **Timestamp:** [time]
+- **Issue/Flag:** [what happened]
+- **Why It's a Concern:** [deviation from guide]
+- **Recommended Improvement:** [how to fix it]
+
+---
+
+### 🔁 Recurring Patterns (if any)
+[List any issues that appeared multiple times]
+
+---
+
+### ✅ What Was Done Well
+[Brief positives if any]`;
+
+let files = [];
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const auditBtn = document.getElementById('auditBtn');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('drag');
+  addFiles(Array.from(e.dataTransfer.files));
+});
+fileInput.addEventListener('change', e => {
+  addFiles(Array.from(e.target.files));
+  fileInput.value = '';
+});
+
+function addFiles(newFiles) {
+  const allowed = ['.txt','.pdf','.vtt'];
+  newFiles.forEach(f => {
+    const ext = '.' + f.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) return;
+    if (!files.find(x => x.name === f.name && x.size === f.size)) files.push(f);
+  });
+  renderFileList();
+}
+
+function removeFile(i) { files.splice(i,1); renderFileList(); }
+
+function renderFileList() {
+  const el = document.getElementById('fileList');
+  if (!files.length) { el.innerHTML=''; auditBtn.disabled=true; return; }
+  el.innerHTML = files.map((f,i) => `
+    <div class="file-item">
+      <span class="fname">📄 ${esc(f.name)}</span>
+      <span class="fmeta">${(f.size/1024).toFixed(1)} KB</span>
+      <button class="rm" onclick="removeFile(${i})">✕</button>
+    </div>`).join('');
+  auditBtn.disabled = false;
+}
+
+function readFile(f) {
+  return new Promise((res,rej) => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (ext === 'pdf') {
+      const r = new FileReader();
+      r.onload = () => res({ type:'pdf', data: r.result.split(',')[1] });
+      r.onerror = () => rej(new Error('Failed to read PDF'));
+      r.readAsDataURL(f);
+    } else {
+      const r = new FileReader();
+      r.onload = () => res({ type:'text', data: r.result });
+      r.onerror = () => rej(new Error('Failed to read file'));
+      r.readAsText(f);
+    }
+  });
+}
+
+function parseVTT(raw) {
+  const lines = raw.split('\n');
+  const out = [];
+  let ts = '';
+  for (let l of lines) {
+    l = l.trim();
+    if (l.includes('-->')) { ts = l.split('-->')[0].trim(); continue; }
+    if (l && !l.startsWith('WEBVTT') && !l.match(/^\d+$/)) {
+      out.push(ts ? `[${ts}] ${l}` : l);
+      ts = '';
+    }
+  }
+  return out.join('\n');
+}
+
+async function auditFile(f, name) {
+  const fileData = await readFile(f);
+  const ext = f.name.split('.').pop().toLowerCase();
+  let textContent = fileData.data;
+  if (ext === 'vtt') textContent = parseVTT(fileData.data);
+
+  let userContent;
+  if (fileData.type === 'pdf') {
+    userContent = [
+      { type:'document', source:{ type:'base64', media_type:'application/pdf', data:fileData.data } },
+      { type:'text', text:`Please audit this call transcript. The closer's name is ${name}. File: ${f.name}` }
+    ];
+  } else {
+    userContent = `Please audit this call transcript. The closer's name is ${name}. File: ${f.name}\n\n---TRANSCRIPT---\n\n${textContent}`;
+  }
+
+  const res = await fetch('/api/audit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: SYSTEM_PROMPT,
+      messages: [{ role:'user', content: userContent }]
+    })
+  });
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data.content?.map(b => b.text||'').join('\n') || 'No response received.';
+}
+
+async function runAudit() {
+  if (!files.length) return;
+  auditBtn.disabled = true;
+  auditBtn.textContent = `⏳ Auditing ${files.length} file${files.length>1?'s':''}...`;
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('reportsWrap').innerHTML = '';
+
+  const name = document.getElementById('closerName').value.trim() || 'the closer';
+
+  const pw = document.getElementById('progressWrap');
+  pw.innerHTML = `<div class="progress-wrap">${files.map((f,i)=>`
+    <div class="progress-item" id="pi-${i}">
+      <span class="pi-name">📄 ${esc(f.name)}</span>
+      <span class="badge pending" id="badge-${i}">Pending</span>
+    </div>`).join('')}</div>`;
+
+  const reports = [];
+  for (let i = 0; i < files.length; i++) {
+    setBadge(i,'running','⏳ Auditing...');
+    try {
+      const report = await auditFile(files[i], name);
+      reports.push({ name: files[i].name, report });
+      setBadge(i,'done','✅ Done');
+    } catch(err) {
+      reports.push({ name: files[i].name, report:null, error: err.message });
+      setBadge(i,'fail','❌ Failed');
+    }
+  }
+
+  const rw = document.getElementById('reportsWrap');
+  rw.innerHTML = '';
+  reports.forEach((r,i) => {
+    const sec = document.createElement('div');
+    sec.className = 'report-section';
+    sec.innerHTML = `
+      <div class="report-title">
+        <h2>📋 ${esc(r.name)}</h2>
+        ${r.report ? `<button class="copy-btn" onclick="copyText(${i})">Copy</button>` : ''}
+      </div>
+      <div class="report-body" id="rb-${i}">
+        ${r.report ? renderReport(r.report) : `<p style="color:#dc2626">⚠️ ${esc(r.error||'Unknown error')}</p>`}
+      </div>`;
+    rw.appendChild(sec);
+  });
+
+  window._reports = reports;
+  rw.scrollIntoView({ behavior:'smooth' });
+  auditBtn.disabled = false;
+  auditBtn.textContent = '🔍 Run Audit';
+}
+
+function setBadge(i,cls,txt) {
+  const b = document.getElementById(`badge-${i}`);
+  if (b) { b.className=`badge ${cls}`; b.textContent=txt; }
+}
+
+function renderReport(text) {
+  const lines = text.split('\n');
+  let html = '', inFinding = false;
+  for (let line of lines) {
+    if (line.startsWith('## ')) { html+=`<h2>${esc(line.slice(3))}</h2>`; }
+    else if (line.startsWith('### ')) { if(inFinding){html+='</div>';inFinding=false;} html+=`<h3>${esc(line.slice(4))}</h3>`; }
+    else if (line.startsWith('**Finding #')) { if(inFinding)html+='</div>'; html+=`<div class="finding"><p><strong>${esc(line.replace(/\*\*/g,''))}</strong></p>`; inFinding=true; }
+    else if (line.startsWith('- **')) { const p=line.replace('- **','').split(':** '); html+=`<p><strong>${esc(p[0])}:</strong> ${esc(p.slice(1).join(': '))}</p>`; }
+    else if (line.startsWith('**')&&line.endsWith('**')) { html+=`<p><strong>${esc(line.replace(/\*\*/g,''))}</strong></p>`; }
+    else if (line==='---') { if(inFinding){html+='</div>';inFinding=false;} html+='<hr/>'; }
+    else if (!line.trim()) { html+='<br/>'; }
+    else { html+=`<p>${esc(line)}</p>`; }
+  }
+  if(inFinding) html+='</div>';
+  return html;
+}
+
+function copyText(i) {
+  const r = window._reports?.[i];
+  if (!r?.report) return;
+  navigator.clipboard.writeText(r.report).then(() => {
+    const btns = document.querySelectorAll('.copy-btn');
+    btns[i].textContent='Copied!';
+    setTimeout(()=>btns[i].textContent='Copy',2000);
+  });
+}
+
+function esc(s) {
+  if(!s)return'';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
